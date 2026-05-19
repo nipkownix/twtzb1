@@ -158,6 +158,27 @@
   margin-right: 4px;
 }
 
+.taf-settings-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #efeff1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.taf-settings-btn:hover,
+.taf-settings-btn:focus {
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+  color: #bf94ff;
+}
+
 .taf-notification-container {
   position: fixed;
   right: 10px;
@@ -275,4 +296,23 @@ body.with-chat-overlay main > aside > div > div > div:nth-of-type(3) {
   font-family: Monaco, monospace;
   font-weight: bold;
   background-color: rgba(0, 0, 0, 0.75);
+}
+
+/* Player controls button styling override */
+button,
+a[href] {
+  outline: none !important;
+}
+
+/* Purple border focus indicator with color inversion */
+button:focus,
+a[href]:focus {
+  box-shadow: 0 0 0 3px #9147ff !important;
+  border-radius: 4px !important;
+}
+
+/* Remove any hover/active state styling from Twitch buttons */
+button {
+  border: none !important;
+  transition: all 0.15s ease-out !important;
 }

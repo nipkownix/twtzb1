@@ -355,9 +355,33 @@ function createOptionsPanel() {
 
   // Header section
   const header = document.createElement('header');
+  const headerContent = document.createElement('div');
+  headerContent.style.display = 'flex';
+  headerContent.style.justifyContent = 'space-between';
+  headerContent.style.alignItems = 'center';
+
   const elmHeading = document.createElement('h1');
   elmHeading.textContent = 'Twitch AdFree Settings';
-  header.appendChild(elmHeading);
+  headerContent.appendChild(elmHeading);
+
+  const closeBtn = document.createElement('button');
+  closeBtn.textContent = '✕';
+  closeBtn.style.width = '40px';
+  closeBtn.style.height = '40px';
+  closeBtn.style.padding = '0';
+  closeBtn.style.fontSize = '24px';
+  closeBtn.style.cursor = 'pointer';
+  closeBtn.style.background = 'transparent';
+  closeBtn.style.border = 'none';
+  closeBtn.style.color = '#9147ff';
+  closeBtn.style.display = 'flex';
+  closeBtn.style.alignItems = 'center';
+  closeBtn.style.justifyContent = 'center';
+  closeBtn.title = 'Close settings panel';
+  closeBtn.addEventListener('click', () => showOptionsPanel(false));
+  headerContent.appendChild(closeBtn);
+
+  header.appendChild(headerContent);
 
   const elmSubtitle = document.createElement('p');
   elmSubtitle.textContent =
@@ -433,6 +457,56 @@ function handleNumberButtonsClick(keyCode) {
 }
 
 const eventHandler = (evt) => {
+  // Navigate through all focusable buttons using a dynamic button list.
+  // This avoids relying on DOM structure and is resilient to Twitch changes.
+  if (!optionsPanelVisible && evt.keyCode in ARROW_KEY_CODE) {
+    const tafBtn = document.querySelector('.taf-settings-btn');
+    if (tafBtn) {
+      const dir = ARROW_KEY_CODE[evt.keyCode];
+      const active = document.activeElement;
+
+      // Find all focusable buttons in the player container
+      const playerContainer = tafBtn.closest('[class*="player"], [class*="Player"], .video-player, .player-controls')
+        || tafBtn.closest('[role="application"]')
+        || document.body;
+      const allButtons = Array.from(playerContainer.querySelectorAll('button, a[href]')).filter(btn => {
+        // Filter out hidden/disabled buttons and non-interactive elements
+        const style = window.getComputedStyle(btn);
+        return style.display !== 'none' && style.visibility !== 'hidden' && btn.offsetParent !== null;
+      });
+
+      // Build navigation list and find TAF position
+      const navigationList = [...allButtons];
+      const tafIndex = navigationList.indexOf(tafBtn);
+
+      // If TAF not in list, insert it after first button (original options button)
+      if (tafIndex === -1) {
+        navigationList.splice(1, 0, tafBtn);
+      }
+
+      // Find current position in navigation list
+      const currentIndex = navigationList.indexOf(active);
+      if (currentIndex !== -1) {
+        let nextIndex = currentIndex;
+
+        // Calculate next position based on direction (circular navigation)
+        if (dir === 'left' || dir === 'up') {
+          nextIndex = (currentIndex - 1 + navigationList.length) % navigationList.length;
+        } else if (dir === 'right' || dir === 'down') {
+          nextIndex = (currentIndex + 1) % navigationList.length;
+        }
+
+        const nextBtn = navigationList[nextIndex];
+        if (nextBtn) {
+          nextBtn.focus();
+          evt.preventDefault();
+          evt.stopPropagation();
+          return false;
+        }
+      }
+    }
+  }
+
   if (Object.keys(LOGGED_IN_NAVIGATION_MAP).includes(String(evt.keyCode))) {
     handleNumberButtonsClick(evt.keyCode);
     evt.preventDefault();
@@ -504,10 +578,34 @@ function initRemoveAnimations() {
   });
 }
 
+function injectSettingsButton() {
+  if (document.querySelector('.taf-settings-btn')) return;
+  const qualityBtn = document.querySelector('[aria-label="Quality Settings"]');
+  if (!qualityBtn || !qualityBtn.parentElement || !qualityBtn.parentElement.parentElement) return;
+
+  // Deep-clone the entire wrapper+button so we inherit all of Twitch's CSS classes
+  // (the spatial nav polyfill and Tizen's native nav both see it as a first-class button)
+  const wrapper = qualityBtn.parentElement.cloneNode(true);
+  const btn = wrapper.querySelector('button') || wrapper;
+  btn.setAttribute('aria-label', 'Twitch AdFree Settings');
+  btn.removeAttribute('aria-expanded');
+  btn.classList.add('taf-settings-btn');
+
+  const svg = btn.querySelector('svg');
+  if (svg) {
+    svg.setAttribute('viewBox', '0 0 20 20');
+    svg.innerHTML = '<path d="M10 2L4 5v4c0 3.87 2.54 7.3 6 8.93C13.46 16.3 16 12.87 16 9V5L10 2zm0 2.27L14 6.2V9c0 2.77-1.64 5.28-4 6.53C7.64 14.28 6 11.77 6 9V6.2l4-1.93z"/>';
+  }
+
+  btn.addEventListener('click', () => showOptionsPanel(true));
+  qualityBtn.parentElement.parentElement.insertBefore(wrapper, qualityBtn.parentElement);
+}
+
 function handleAdsAndConsentModals() {
   const enableAdBlock = configRead(ENABLE_AD_BLOCK);
 
   const observer = new MutationObserver(() => {
+    injectSettingsButton();
     const adElement = document.querySelector(bannerAdSelector);
     const videoElement = document.querySelector('video');
 
@@ -610,6 +708,7 @@ function init() {
   initRemoveAnimations();
   initKeyListeners();
   initChatOverlay();
+  injectSettingsButton();
 
   showNotification('Press [GREEN] button to open configuration', 5000, 'info');
 }
